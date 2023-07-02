@@ -1,10 +1,11 @@
 import logging
 import colorlog
 
+
 class CustomLogger:
     def __init__(self):
-        self.logger = logging.getLogger()  # Get the root logger
-        self.logger.setLevel(logging.INFO)  # Set your desired log level
+        self._logger: logging.Logger = logging.getLogger()  # Get the root logger
+        self._logger.setLevel(logging.INFO)  # Set your desired log level
 
         formatter = colorlog.ColoredFormatter(
             '%(log_color)s%(levelname)s:%(name)s:%(message)s%(reset)s',
@@ -20,7 +21,7 @@ class CustomLogger:
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(formatter)
 
-        self.logger.addHandler(console_handler)
+        self._logger.addHandler(console_handler)
 
     def get_logger(self):
-        return self.logger
+        return self._logger
