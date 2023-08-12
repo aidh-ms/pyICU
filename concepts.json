@@ -1,0 +1,18 @@
+{
+    "creatinine": {
+        "label": "creatinine",
+        "specimen": "serum",
+        "units": "mg/dL",
+        "mimic_settings": [
+            {
+                "mimiciv_hosp": {
+                    "chartevents": {
+                        "item_ids": [
+                            50912
+                        ]
+                    }
+                }
+            }
+        ]
+    }
+}
