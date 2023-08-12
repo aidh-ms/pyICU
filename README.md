@@ -1,6 +1,6 @@
-# ICUTSToolbox
+# pyICU
 
-Toolbox for working with time series data in common medical ICU databases.
+Toolbox for working with data in common medical ICU databases.
 
 ## Testing
 
