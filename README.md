@@ -31,6 +31,10 @@ We aim to provide a fully normalized data model for the items in all available I
         "label": string,
         "specimen": string,
         "units": string,
+        "description": string,
+        "tags": [
+            string
+        ],
         "db_settings": [
             {
                 "db_schema": {
@@ -52,6 +56,8 @@ This model ensures both extendability and representation of each item by multipl
 * `label`: The label for the item. This is the label that is used to display the item to the user. It is a string.
 * `specimen`: The specimen for the item. This is the specimen that the item is measured from. It is a string.
 * `units`: The units for the item. This is the units that the item is measured in. It is a string.
+* `description`: The description for the item. This is the description that is used to describe the item to the user. It is a string.
+* `tags`: The tags for the item. This is a list of tags that are used to describe the item to the user. It is a list of strings.
 * `db_settings`: The settings for the item in each database. This is a list of database settings.
 * `db_schema`: The schema for the item in a database. This is a dictionary containing datase schemas.
 * `db_table`: The table for the item in a database. This is a dictionary containing attributes of the database table.

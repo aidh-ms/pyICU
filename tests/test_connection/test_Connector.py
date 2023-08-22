@@ -2,27 +2,25 @@ import unittest
 from unittest.mock import MagicMock, patch
 from unittest import mock
 import pandas as pd
-from ICUTSToolbox.connection import DatabaseConnector, SQLDBConnector
-
-
-class DatabaseConnectorTestCase(unittest.TestCase):
-    def setUp(self):
-        self.engine_mock = MagicMock()
-        self.connector = DatabaseConnector(self.engine_mock)
-
-    def test_execute_query_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            self.connector.execute_query("SELECT * FROM table")
-
-    def test_execute_query_file_not_implemented(self):
-        with self.assertRaises(NotImplementedError):
-            self.connector.execute_query_file("query.sql")
+from pyICU.connection.Connector import SQLDBConnector
 
 
 class SQLDBConnectorTestCase(unittest.TestCase):
     def setUp(self):
+        self.test_item_identifier = 'creatinine'
         self.engine_mock = MagicMock()
         self.connector = SQLDBConnector(self.engine_mock)
+
+    def test_load_concepts(self):
+        # Assuming you have a test concepts.json file in your test directory
+        concepts = self.connector.load_concepts(json_file='concepts.json')
+        self.assertTrue(isinstance(concepts, dict))
+        self.assertTrue(self.test_item_identifier in concepts)
+        self.assertEqual(type(concepts[self.test_item_identifier]), type({}))
+        self.assertEqual(
+            type(concepts[self.test_item_identifier]['label']), str)
+        self.assertEqual(
+            type(concepts[self.test_item_identifier]['description']), str)
 
     def test_execute_query(self):
         query = "SELECT * FROM table"
@@ -75,6 +73,11 @@ class SQLDBConnectorTestCase(unittest.TestCase):
                 self.assertEqual(self.engine_mock.call_count, 2)
                 open_mock.assert_has_calls(
                     [mock.call(f"{folder_path}/{file}", 'r') for file in query_files])
+
+    def test_get_concept(self):
+
+        assert self.connector.get_concept(
+            self.test_item_identifier) == self.connector.concepts[self.test_item_identifier]
 
 
 if __name__ == '__main__':

@@ -1,7 +1,7 @@
 import unittest
 from io import StringIO
 import logging
-from ICUTSToolbox.logger import CustomLogger
+from pyICU.logger import CustomLogger
 
 
 class LoggerTestCase(unittest.TestCase):

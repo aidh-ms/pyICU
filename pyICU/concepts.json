@@ -3,6 +3,17 @@
         "label": "creatinine",
         "specimen": "serum",
         "units": "mg/dL",
+        "description": "",
+        "tags": [
+            "chemistry",
+            "lab",
+            "kidney",
+            "blood",
+            "serum",
+            "creatinine",
+            "crea",
+            "renal"
+        ],
         "mimic_settings": [
             {
                 "mimiciv_hosp": {
