@@ -7,7 +7,7 @@ import json
 import pandas as pd
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, List
-from sqlalchemy import engine, text
+from sqlalchemy import engine
 
 from ..logger import CustomLogger
 
@@ -60,7 +60,7 @@ class SQLDBConnector(DatabaseConnector):
     def execute_query(self, query: str, params: Optional[Dict] = None) -> pd.DataFrame:
         """Execute an SQL query and return the result as a DataFrame"""
         logger.info("Executing query: %s", query)
-        return pd.read_sql(text(query), self.sqla_engine, params=params)
+        return pd.read_sql(query, self.sqla_engine, params=params)
 
     def execute_query_file(self, file_path: str, params: Optional[Dict] = None) -> pd.DataFrame:
         """Execute an SQL query and return the result as a DataFrame"""
