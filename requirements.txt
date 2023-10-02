@@ -1,5 +1,5 @@
 numpy==1.25.2
 pandas==2.0.3
-psycopg2==2.9.7
+psycopg2==2.9.8
 SQLAlchemy<2
 python-dotenv==1.0.0
