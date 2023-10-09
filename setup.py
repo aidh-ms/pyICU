@@ -14,5 +14,7 @@ setup(
         'psycopg2>=2.9.7',
         'pandas>=2.0.3',
         'SQLAlchemy>=1.4.49',
+        'python-dotenv>=1.0.0',
+
     ],
 )
