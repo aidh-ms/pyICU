@@ -116,10 +116,9 @@ def intervention_after_event(
     logging.debug(f"merged_df: {merged_df}")
     intervention_after_event_df = merged_df[
         (
-            merged_df[intervention_time_indicator]
-            <= (merged_df[event_time_indicator] + time_window)
-        )
-        & (merged_df[intervention_time_indicator] >= merged_df[event_time_indicator])
+            merged_df[intervention_time_indicator] <= (
+                merged_df[event_time_indicator] + time_window)
+        ) & (merged_df[intervention_time_indicator] >= merged_df[event_time_indicator])
     ]
     return intervention_after_event_df[sample_indicator].unique().tolist()
 
@@ -205,22 +204,15 @@ def continous_intervention_after_event(
     continous_intervention_after_event_df = merged_df[
         (
             (
-                merged_df[intervention_time_start_indicator]
-                > merged_df[event_time_indicator]
+                merged_df[intervention_time_start_indicator] > merged_df[event_time_indicator]
+            ) & (
+                merged_df[intervention_time_start_indicator] < merged_df[event_time_indicator] + time_window
             )
-            & (
-                merged_df[intervention_time_start_indicator]
-                < merged_df[event_time_indicator] + time_window
-            )
-        )
-        | (
+        ) | (
             (
-                merged_df[intervention_time_start_indicator]
-                < merged_df[event_time_indicator]
-            )
-            & (
-                merged_df[intervention_time_end_indicator]
-                > merged_df[event_time_indicator]
+                merged_df[intervention_time_start_indicator] < merged_df[event_time_indicator]
+            ) & (
+                merged_df[intervention_time_end_indicator] > merged_df[event_time_indicator]
             )
         )
     ]
@@ -234,8 +226,7 @@ def calculate_time_overlap(
     observation_window_end = event_time + timedelta(hours=observation_time)
     # Check if the intervention overlaps with the observation window
     if (
-        intervention_time_start <= observation_window_end
-        and intervention_time_end >= event_time
+        intervention_time_start <= observation_window_end and intervention_time_end >= event_time
     ):
         # Calculate the overlap time
         overlap_start = max(intervention_time_start, event_time)
@@ -326,13 +317,12 @@ def dosage_during_event(
         merged_df = merged_df.drop_duplicates()
     # calculate dosage per time
     merged_df["duration_of_intervention"] = (
-        merged_df[intervention_time_end_indicator]
-        - merged_df[intervention_time_start_indicator]
+        merged_df[intervention_time_end_indicator] -
+        merged_df[intervention_time_start_indicator]
     )
     merged_df["dosage_per_hour"] = (
-        merged_df[intervention_dosage_indicator]
-        / merged_df["duration_of_intervention"].dt.total_seconds()
-        * 3600
+        merged_df[intervention_dosage_indicator] /
+        merged_df["duration_of_intervention"].dt.total_seconds() * 3600
     )
     # calculate time of dosage during observation window
     merged_df["end_of_observation"] = merged_df[event_time_indicator] + pd.Timedelta(
@@ -376,9 +366,99 @@ def count_events_during_observation(
     convert_datetimes: bool = True,
 ) -> pd.DataFrame:
     """
-    Counts the number of events that occurred within a specified time window after an event.
+    Counts the number of eventsthat occurred within a specified time window after an event.
 
-    Takes two dataframes, one containing events and one containing interventions such as medications that were administered to a patient together with the start and end of the administration. Returns a dataframe containing the dosage of the intervention that occurred within a specified time window after an event.
+    Takes two dataframes, one containing events and one containing interventions such as measurements that were taken from a patient
+    together with the time of measurement. Returns a dataframe containing the total counts of the intervention that occurred within a specified time window after an event.
+
+    Parameters
+    ----------
+    event : pd.DataFrame
+        Pandas DataFrame containing the event data.
+
+        Expected structure:
+        - Rows represent individual samples.
+        - Columns contain the following:
+            - '{sample_indicator}': Sample indicator (default: 'subject_id').
+            - '{event_time_indicator}': Timestamp when the event occurred.
+
+    intervention : pd.DataFrame
+        Pandas DataFrame containing the intervention data.
+
+        Expected structure:
+        - Rows represent individual samples.
+        - Columns contain the following:
+            - '{sample_indicator}': Sample indicator (default: 'subject_id').
+            - '{intervention_time_indicator}': Timestamp indicating the timing of the intervention (default: 'endtime').
+            - '{intervention_value_indicator}': Dosage of the intervention (default: 'valuenum').
+    event_time_indicator : str
+        Column name of the event timestamp column.
+    observation_time : int
+        Time window in hours after the event to check for interventions.
+    sample_indicator : str, optional
+        Column name of the sample indicator column, by default "subject_id"
+    intervention_time_indicator : str, optional
+        Column name of the intervention timestamps column, by default "charttime"
+    convert_datetimes : bool, optional
+        If True, converts all columns that contain timestamps to datetime objects, by default False
+
+    Returns
+    -------
+    List
+        List of unique sample IDs for which an intervention occurred within a specified time window after an event.
+
+    Raises
+    ------
+    ValueError
+        Raised if the time indicator columns do not contain timestamps and convert_datetimes is False.
+    """
+    # check if time indicator cols are timestamps and convert or throw error
+    check_or_convert_timestamp_columns(
+        [
+            (event, [event_time_indicator]),
+            (intervention, [intervention_time_indicator]),
+        ],
+        convert_datetimes,
+    )
+    merged_df = pd.merge(event, intervention, on=sample_indicator, how="inner")
+    merged_df.dropna(subset=[intervention_time_indicator], inplace=True)
+    # count interventions during observation window
+    merged_df["end_of_observation"] = merged_df[event_time_indicator] + pd.Timedelta(
+        hours=observation_time
+    )
+    # count interventions during observation window
+    merged_df["intervention_during_observation"] = merged_df.apply(
+        lambda row: 1
+        if (
+            row[intervention_time_indicator] >= row[event_time_indicator] and row[intervention_time_indicator] <= row["end_of_observation"]
+        )
+        else 0,
+        axis=1,
+    )
+    intervention_during_observation_df = merged_df.groupby(sample_indicator).agg(
+        {"intervention_during_observation": "sum"}
+    )
+    intervention_during_observation_df.rename(
+        columns={"intervention_during_observation": "total_interventions"}, inplace=True
+    )
+    intervention_during_observation_df.reset_index(inplace=True)
+    return intervention_during_observation_df
+
+
+def count_events_per_day_during_observation(
+    event: pd.DataFrame,
+    intervention: pd.DataFrame,
+    event_time_indicator: str,
+    observation_time: int,
+    sample_indicator: str = "subject_id",
+    intervention_time_indicator: str = "charttime",
+    convert_datetimes: bool = True,
+) -> pd.DataFrame:
+    """
+    Counts the number of events per day that occurred within a specified time window after an event.
+
+    Takes two dataframes, one containing events and one containing interventions such as measurements that were taken from a patient
+    together with the time of measurement. Returns a dataframe containing the total counts of the intervention per day that occurred within a specified time window after an event.
 
     Parameters
     ----------
@@ -421,7 +501,6 @@ def count_events_during_observation(
     ValueError
         Raised if the time indicator columns do not contain timestamps and convert_datetimes is False.
     """
-    # check if time indicator cols are timestamps and convert or throw error
     check_or_convert_timestamp_columns(
         [
             (event, [event_time_indicator]),
@@ -431,28 +510,25 @@ def count_events_during_observation(
     )
     merged_df = pd.merge(event, intervention, on=sample_indicator, how="inner")
     merged_df.dropna(subset=[intervention_time_indicator], inplace=True)
-    # count interventions during observation window
-    merged_df["end_of_observation"] = merged_df[event_time_indicator] + pd.Timedelta(
-        hours=observation_time
-    )
-    # count interventions during observation window
-    merged_df["intervention_during_observation"] = merged_df.apply(
-        lambda row: 1
-        if (
-            row[intervention_time_indicator] >= row[event_time_indicator]
-            and row[intervention_time_indicator] <= row["end_of_observation"]
+    # exclude rows outside observation window
+    merged_df = merged_df.loc[
+        (
+            (merged_df[intervention_time_indicator] >= merged_df[event_time_indicator]) & (
+                merged_df[intervention_time_indicator] <= merged_df[event_time_indicator] +
+                pd.Timedelta(observation_time, unit="h")
+            )
         )
-        else 0,
-        axis=1,
-    )
-    intervention_during_observation_df = merged_df.groupby(sample_indicator).agg(
-        {"intervention_during_observation": "sum"}
-    )
-    intervention_during_observation_df.rename(
-        columns={"intervention_during_observation": "total_interventions"}, inplace=True
-    )
-    intervention_during_observation_df.reset_index(inplace=True)
-    return intervention_during_observation_df
+    ]
+
+    # count interventions per day during observation window
+    merged_df[intervention_time_indicator +
+              "_day"] = merged_df[intervention_time_indicator].dt.floor('d')
+    # count measurements per patient per 24 hours
+    grouped_df = merged_df.groupby(
+        [sample_indicator, intervention_time_indicator + "_day"]
+    ).size().reset_index(name="count_per_day")
+
+    return grouped_df
 
 
 def time_based_violation(
@@ -508,13 +584,13 @@ def time_based_violation(
 
                     # if the value is below the threshold, we check if the previous value was also below the threshold
                     if (value <= threshold and previous_value <= threshold) and (
-                        charttime - previous_charttime
-                        < pd.Timedelta(delta_value, unit="h")
+                        charttime - previous_charttime < pd.Timedelta(
+                            delta_value, unit="h")
                     ):
                         continue
                     if (value <= threshold and previous_value <= threshold) and (
-                        charttime - previous_charttime
-                        >= pd.Timedelta(delta_value, unit="h")
+                        charttime - previous_charttime >= pd.Timedelta(
+                            delta_value, unit="h")
                     ):
                         # if conditions are met, add stay_id to list
                         violation_ids.append(row[sample_indicator])
@@ -525,13 +601,13 @@ def time_based_violation(
                         tmp = row
                         continue
                     if (value >= threshold and previous_value >= threshold) and (
-                        charttime - previous_charttime
-                        < pd.Timedelta(delta_value, unit="h")
+                        charttime - previous_charttime < pd.Timedelta(
+                            delta_value, unit="h")
                     ):
                         continue
                     if (value >= threshold and previous_value >= threshold) and (
-                        charttime - previous_charttime
-                        >= pd.Timedelta(delta_value, unit="h")
+                        charttime - previous_charttime >= pd.Timedelta(
+                            delta_value, unit="h")
                     ):
                         # if conditions are met, add stay_id to list
                         violation_ids.append(row[sample_indicator])
@@ -598,10 +674,9 @@ def get_time_based_violation_dict(
 
     df = df.loc[
         (
-            (df[time_indicator] > df[observation_time])
-            & (
-                df[time_indicator]
-                < df[observation_time] + pd.Timedelta(delta, unit="h")
+            (df[time_indicator] > df[observation_time]) & (
+                df[time_indicator] < df[observation_time] +
+                pd.Timedelta(delta, unit="h")
             )
         ),
         :,

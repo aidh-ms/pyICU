@@ -2,7 +2,18 @@
 
 import unittest
 import pandas as pd
-from pyICU.utils import is_timestamp, convert_timestamp_columns, check_or_convert_timestamp_columns, intervention_after_event, continous_intervention_after_event, calculate_time_overlap, dosage_during_event, time_based_violation, count_events_during_observation
+from pyICU.utils import (
+    is_timestamp,
+    convert_timestamp_columns,
+    check_or_convert_timestamp_columns,
+    intervention_after_event,
+    continous_intervention_after_event,
+    calculate_time_overlap,
+    dosage_during_event,
+    time_based_violation,
+    count_events_during_observation,
+    count_events_per_day_during_observation
+)
 from datetime import datetime
 
 
@@ -274,8 +285,9 @@ class TestCountEventsDuringObservation(unittest.TestCase):
     def setUp(self):
         # Create sample DataFrames for testing
         self.event_data = pd.DataFrame({
-            'subject_id': [1, 2, 3, 4],
+            'subject_id': [1, 2, 3, 4, 5],
             'event_time': [datetime(2023, 1, 1, 8, 0),
+                           datetime(2023, 1, 1, 8, 0),
                            datetime(2023, 1, 1, 8, 0),
                            datetime(2023, 1, 1, 8, 0),
                            datetime(2023, 1, 1, 8, 0)]
@@ -302,6 +314,52 @@ class TestCountEventsDuringObservation(unittest.TestCase):
         expected_result = pd.DataFrame({
             'subject_id': [1, 2, 3, 4],
             'total_interventions': [1, 1, 1, 2]
+        })
+
+        pd.testing.assert_frame_equal(result, expected_result)
+
+
+class TestCountEventsPerDayDuringObservation(unittest.TestCase):
+    def setUp(self):
+        # Create sample DataFrames for testing
+        self.event_data = pd.DataFrame({
+            'subject_id': [1, 2, 3, 4, 5],
+            'event_time': [datetime(2023, 1, 1, 8, 0),
+                           datetime(2023, 1, 1, 8, 0),
+                           datetime(2023, 1, 1, 8, 0),
+                           datetime(2023, 1, 1, 8, 0),
+                           datetime(2023, 1, 1, 8, 0)]
+        })
+        self.intervention_data: pd.DataFrame = pd.DataFrame({
+            'subject_id': [1, 1, 2, 2, 2, 3, 4, 4],
+            'charttime': [
+                datetime(2023, 1, 1, 7, 15),  # 1
+                datetime(2023, 1, 1, 9, 0),  # 1
+                datetime(2023, 1, 1, 15, 0),  # 2
+                datetime(2023, 1, 2, 9, 30),  # 2
+                datetime(2023, 1, 2, 10, 0),  # 2
+                datetime(2023, 1, 1, 10, 15),  # 3
+                datetime(2023, 1, 1, 10, 15),  # 4
+                datetime(2023, 1, 10, 10, 15)  # 4
+            ],
+            'amount': [5, 10, 20, 15, 30, 5, 10, 10]
+        })
+
+    def test_count_events_per_day_during_observation(self):
+        result = count_events_per_day_during_observation(
+            self.event_data, self.intervention_data, 'event_time', 72, 'subject_id', 'charttime')
+
+        # Expected result for the given data and parameters
+        expected_result = pd.DataFrame({
+            'subject_id': [1, 2, 2, 3, 4],
+            'charttime_day': [
+                datetime(2023, 1, 1),
+                datetime(2023, 1, 1),
+                datetime(2023, 1, 2),
+                datetime(2023, 1, 1),
+                datetime(2023, 1, 1)
+            ],
+            'count_per_day': [1, 1, 2, 1, 1]
         })
 
         pd.testing.assert_frame_equal(result, expected_result)
